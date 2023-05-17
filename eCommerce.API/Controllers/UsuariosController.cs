@@ -29,6 +29,16 @@ namespace eCommerce.API.Controllers {
 
             return Ok(usuario);
         }
+        [HttpGet("maioresde18")]
+        public IActionResult GetMaioresDe18() {
+            try {
+                List<Usuario> usuariosMaioresDe18 = _repository.GetUsuariosMaioresDe18();
+                return Ok(usuariosMaioresDe18);
+            }
+            catch (Exception ex) {
+                return StatusCode(500, ex.Message); // ERRO HTTP: 500 - Internal Server Error
+            }
+        }
 
         [HttpPost]
         public IActionResult Insert([FromBody] Usuario usuario) {
