@@ -8,7 +8,8 @@ namespace eCommerce.API.Repositories {
         public void Insert(Usuario usuario);
         public void Update(Usuario usuario);
         public void Delete(int id);
-
+        public object GetMaiorDeIdade(int id);
         List<Usuario> GetUsuariosMaioresDe18();
+
     }
 }

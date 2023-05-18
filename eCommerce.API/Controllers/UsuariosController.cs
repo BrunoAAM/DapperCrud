@@ -40,6 +40,17 @@ namespace eCommerce.API.Controllers {
             }
         }
 
+        [HttpGet("maiordeidade/{id}")]
+        public IActionResult GetMaiorDeIdade(int id) {
+            var usuario = _repository.GetMaiorDeIdade(id);
+
+            if (usuario == null) {
+                return NotFound(); // ERRO HTTP: 404 - Not Found
+            }
+
+            return Ok(usuario);
+        }
+
         [HttpPost]
         public IActionResult Insert([FromBody] Usuario usuario) {
             _repository.Insert(usuario);

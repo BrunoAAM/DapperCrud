@@ -5,6 +5,7 @@ using eCommerce.API.Models;
 using Dapper;
 using System.Transactions;
 using System.Data.Common;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace eCommerce.API.Repositories {
     public class UsuarioRepository : IUsuarioRepository {
@@ -120,6 +121,59 @@ namespace eCommerce.API.Repositories {
 
             return usuarios.SingleOrDefault();
         }
+
+
+        public object GetMaiorDeIdade(int id) {
+            List<Usuario> usuarios = new List<Usuario>();
+            string sql = "SELECT U.*, C.*, EE.*, D.* FROM Usuarios as U LEFT JOIN Contatos C ON C.UsuarioId = U.Id LEFT JOIN EnderecosEntrega EE ON EE.UsuarioId = U.Id LEFT JOIN UsuariosDepartamentos UD ON UD.UsuarioId = U.Id LEFT JOIN Departamentos D ON UD.DepartamentoId = D.Id WHERE U.Id = @Id";
+
+            var resultado =   _connection.Query<Usuario, Contato, EnderecoEntrega, Departamento, Usuario>(sql,
+                (usuario, contato, enderecoEntrega, departamento) => {
+
+                    //Verificação do usuário.
+                    if (usuarios.SingleOrDefault(a => a.Id == usuario.Id) == null) {
+                        usuario.Departamentos = new List<Departamento>();
+                        usuario.EnderecosEntrega = new List<EnderecoEntrega>();
+                        usuario.Contato = contato;
+                        usuarios.Add(usuario);
+                    }
+                    else {
+                        usuario = usuarios.SingleOrDefault(a => a.Id == usuario.Id);
+                    }
+
+                    //Verificação do Endereço de Entrega.
+                    if (usuario.EnderecosEntrega.SingleOrDefault(a => a.Id == enderecoEntrega.Id) == null) {
+                        usuario.EnderecosEntrega.Add(enderecoEntrega);
+                    }
+
+                    //Verificação do Departamento.
+                    if (usuario.Departamentos == null) {
+                        usuario.Departamentos = new List<Departamento>();
+                    }
+                    if (usuario.Departamentos.FirstOrDefault(a => a.Id == departamento.Id) == null) {
+                        usuario.Departamentos.Add(departamento);
+                    }
+
+                    return usuario;
+                }, new { Id = id });
+                int idade =0;
+            var usuario = resultado.FirstOrDefault();
+            if (usuario != null) {
+                DateTime dataAtual = DateTime.Now;
+                DateTime dataNascimento = usuario.DataNascimento;
+                 idade = dataAtual.Year - dataNascimento.Year;
+                if (dataAtual < dataNascimento.AddYears(idade)) {
+                    idade--;
+                }
+
+                if (idade < 18) {
+                    return $"O usuario '{usuario.Nome}' não é maior de idade. Ele têm {idade} anos de idade";
+                }
+            }
+
+            return $"O usuario '{usuario.Nome}' é maior de idade. Ele têm {idade} anos de idade";
+        }
+
 
         public void Insert(Usuario usuario) {
             _connection.Open();
