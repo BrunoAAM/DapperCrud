@@ -17,36 +17,32 @@ namespace eCommerce.API.Repositories {
         }
 
         public List<Usuario> Get() {
-            //return _connection.Query<Usuario>("SELECT * FROM Usuarios").ToList();
             List<Usuario> usuarios = new List<Usuario>();
-            string sql = "SELECT U.*, C.*, EE.*, D.* FROM Usuarios as U LEFT JOIN Contatos C ON C.UsuarioId = U.Id LEFT JOIN EnderecosEntrega EE ON EE.UsuarioId = U.Id LEFT JOIN UsuariosDepartamentos UD ON UD.UsuarioId = U.Id LEFT JOIN Departamentos D ON UD.DepartamentoId = D.Id";
+            string sql = "SELECT U.*, C.*, EE.* FROM Usuarios as U " +
+                         "LEFT JOIN Contatos C ON C.UsuarioId = U.Id " +
+                         "LEFT JOIN EnderecosEntrega EE ON EE.UsuarioId = U.Id";
 
-            _connection.Query<Usuario, Contato, EnderecoEntrega, Departamento, Usuario>(sql,
-                (usuario, contato, enderecoEntrega, departamento) => {
-
-                    //Verificação do usuário.
-                    if (usuarios.SingleOrDefault(a => a.Id == usuario.Id) == null) {
-                        usuario.Departamentos = new List<Departamento>();
+            _connection.Query<Usuario, Contato, EnderecoEntrega, Usuario>(sql,
+                (usuario, contato, enderecoEntrega) => {
+                    Usuario usuarioExistente = usuarios.SingleOrDefault(a => a.Id == usuario.Id);
+                    if (usuarioExistente == null) {
+                        usuario.Departamentos = null;
                         usuario.EnderecosEntrega = new List<EnderecoEntrega>();
                         usuario.Contato = contato;
                         usuarios.Add(usuario);
                     }
                     else {
-                        usuario = usuarios.SingleOrDefault(a => a.Id == usuario.Id);
+                        usuario = usuarioExistente;
                     }
 
-                    //Verificação do Endereço de Entrega.
-                    if (usuario.EnderecosEntrega.SingleOrDefault(a => a.Id == enderecoEntrega.Id) == null) {
+                    if (enderecoEntrega != null) {
                         usuario.EnderecosEntrega.Add(enderecoEntrega);
                     }
 
-                    //Verificação do Departamento.
-                    if (usuario.Departamentos.SingleOrDefault(a => a.Id == departamento.Id) == null) {
-                        usuario.Departamentos.Add(departamento);
-                    }
-
                     return usuario;
-                });
+                },
+                splitOn: "Id,Id,Id"
+            );
 
             return usuarios;
         }
@@ -108,13 +104,16 @@ namespace eCommerce.API.Repositories {
                         usuario.EnderecosEntrega.Add(enderecoEntrega);
                     }
 
-                    //Verificação do Departamento.
-                    if (usuario.Departamentos == null) {
-                        usuario.Departamentos = new List<Departamento>();
+                    if (departamento != null) {
+                        if (usuario.Departamentos == null) {
+                            usuario.Departamentos = new List<Departamento>();
+                        }
+
+                        if (!usuario.Departamentos.Any(d => d.Id == departamento.Id)) {
+                            usuario.Departamentos.Add(departamento);
+                        }
                     }
-                    if (usuario.Departamentos.FirstOrDefault(a => a.Id == departamento.Id) == null) {
-                        usuario.Departamentos.Add(departamento);
-                    }
+
 
                     return usuario;
                 }, new { Id = id });
@@ -157,21 +156,66 @@ namespace eCommerce.API.Repositories {
                     return usuario;
                 }, new { Id = id });
                 int idade =0;
-            var usuario = resultado.FirstOrDefault();
-            if (usuario != null) {
-                DateTime dataAtual = DateTime.Now;
-                DateTime dataNascimento = usuario.DataNascimento;
-                 idade = dataAtual.Year - dataNascimento.Year;
-                if (dataAtual < dataNascimento.AddYears(idade)) {
-                    idade--;
+                var usuario = resultado.FirstOrDefault();
+                if (usuario != null) {
+                    DateTime dataAtual = DateTime.Now;
+                    DateTime dataNascimento = usuario.DataNascimento;
+                     idade = dataAtual.Year - dataNascimento.Year;
+                    if (dataAtual < dataNascimento.AddYears(idade)) {
+                        idade--;
+                    }
+
+                    if (idade < 18) {
+                        return $"O usuario '{usuario.Nome}' não é maior de idade. Ele têm {idade} anos de idade";
+                    }
                 }
 
-                if (idade < 18) {
-                    return $"O usuario '{usuario.Nome}' não é maior de idade. Ele têm {idade} anos de idade";
-                }
-            }
+                return $"O usuario '{usuario.Nome}' é maior de idade. Ele têm {idade} anos de idade";
+        }
 
-            return $"O usuario '{usuario.Nome}' é maior de idade. Ele têm {idade} anos de idade";
+        public List<Usuario> GetUsuariosMenorDe18() {
+            
+            List<Usuario> usuarios = new List<Usuario>();
+            string sql = "SELECT U.*, C.*, EE.*, D.* FROM Usuarios as U LEFT JOIN Contatos C ON C.UsuarioId = U.Id LEFT JOIN EnderecosEntrega EE ON EE.UsuarioId = U.Id LEFT JOIN UsuariosDepartamentos UD ON UD.UsuarioId = U.Id LEFT JOIN Departamentos D ON UD.DepartamentoId = D.Id";
+
+           var resultado = _connection.Query<Usuario, Contato, EnderecoEntrega, Departamento, Usuario>(sql,
+                (usuario, contato, enderecoEntrega, departamento) => {
+
+                    //Verificação do usuário.
+                    if (usuarios.SingleOrDefault(a => a.Id == usuario.Id) == null) {
+                        usuario.Departamentos = new List<Departamento>();
+                        usuario.EnderecosEntrega = new List<EnderecoEntrega>();
+                        usuario.Contato = contato;
+                        usuarios.Add(usuario);
+                    }
+                    else {
+                        usuario = usuarios.SingleOrDefault(a => a.Id == usuario.Id);
+                    }
+
+                    //Verificação do Endereço de Entrega.
+                    if (usuario.EnderecosEntrega.SingleOrDefault(a => a.Id == enderecoEntrega.Id) == null) {
+                        usuario.EnderecosEntrega.Add(enderecoEntrega);
+                    }
+
+                    //Verificação do Departamento.
+                    if (usuario.Departamentos.SingleOrDefault(a => a.Id == departamento.Id) == null) {
+                        usuario.Departamentos.Add(departamento);
+                    }
+
+                    return usuario;
+                }); 
+                    
+                    var usuariosmenordeidade = resultado.Where(u => {
+                    DateTime dataAtual = DateTime.Now;
+                    DateTime dataNascimento = u.DataNascimento;
+                    int idade = dataAtual.Year - dataNascimento.Year;
+                    if (dataAtual < dataNascimento.AddYears(idade)) {
+                        idade--;
+                    }
+                    return idade < 18;
+                }).Distinct().ToList();
+
+            return usuariosmenordeidade;
         }
 
 
@@ -205,6 +249,7 @@ namespace eCommerce.API.Repositories {
                             _connection.Execute(sqlUsuariosDepartamentos, new { UsuarioId = usuario.Id, DepartamentoId = departamento.Id }, transaction);
                         }
                     }
+
                 }
 
                 transaction.Commit();
@@ -213,8 +258,8 @@ namespace eCommerce.API.Repositories {
                 try {
                     transaction.Rollback();
                 }
-                catch (Exception) {
-                    // Retornar para UsuárioController alguma mensagem. Lançar uma exceção.
+                catch (Exception E) {
+                    Console.WriteLine(E);
                 }
             }
             finally {
@@ -254,8 +299,13 @@ namespace eCommerce.API.Repositories {
                 if (usuario.Departamentos != null && usuario.Departamentos.Count > 0) {
                     foreach (var departamento in usuario.Departamentos) {
                         if (departamento != null) {
+                            // Atualizar o nome do departamento
+                            string sqlAtualizarDepartamento = "UPDATE Departamentos SET Nome = @Nome WHERE Id = @Id";
+                            _connection.Execute(sqlAtualizarDepartamento, new { Nome = departamento.Nome, Id = departamento.Id }, transaction);
+
+                            // Atualizar a tabela de relacionamento UsuariosDepartamentos
                             string sqlUsuariosDepartamentos = "INSERT INTO UsuariosDepartamentos (UsuarioId, DepartamentoId) VALUES (@UsuarioId, @DepartamentoId)";
-                            _connection.Execute(sqlUsuariosDepartamentos, new { UsuarioId = usuario.Id, DepartamentoId = departamento?.Id }, transaction);
+                            _connection.Execute(sqlUsuariosDepartamentos, new { UsuarioId = usuario.Id, DepartamentoId = departamento.Id }, transaction);
                         }
                     }
                 }

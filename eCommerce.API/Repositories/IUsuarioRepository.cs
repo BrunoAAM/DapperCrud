@@ -10,6 +10,7 @@ namespace eCommerce.API.Repositories {
         public void Delete(int id);
         public object GetMaiorDeIdade(int id);
         List<Usuario> GetUsuariosMaioresDe18();
+        List<Usuario> GetUsuariosMenorDe18();
 
     }
 }
